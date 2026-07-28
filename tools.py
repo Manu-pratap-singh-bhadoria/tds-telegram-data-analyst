@@ -220,13 +220,8 @@ class DataTools:
         }
 
     @staticmethod
-    def groupby_count(df, group_column):
-        result = (
-            df.groupby(group_column)
-            .size()
-            .to_dict()
-        )
-
+    def groupby_count(df, group_column, value_column=None):
+        result = df.groupby(group_column).size().to_dict()
         return {
             "groupby_count": result
         }

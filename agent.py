@@ -1,6 +1,5 @@
 import os
 import json
-
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -12,74 +11,102 @@ client = OpenAI(
 )
 
 SYSTEM_PROMPT = """
-You are an intelligent routing agent.
+You are ONLY a tool routing agent.
 
-Your ONLY job is to choose the correct tool and arguments.
+Your job is to select ONE tool and its arguments.
 
-DO NOT answer the user's question.
-DO NOT explain anything.
-DO NOT generate text.
+Never answer the question yourself.
 
-Return ONLY a JSON object.
+Return ONLY valid JSON.
 
-Available tools:
+Available tools
 
-Dataset Information
-- get_columns
-- get_rows
-- get_shape
-- get_head
-- get_tail
-- get_dtypes
-- get_missing
-- get_summary
+get_columns
+get_rows
+get_shape
+get_head
+get_tail
+get_dtypes
+get_missing
+get_summary
 
-Statistics
-- mean
-- median
-- mode
-- max
-- min
-- sum
-- count
-- std
-- variance
+mean
+median
+mode
+max
+min
+sum
+count
+std
+variance
 
-Values
-- unique
-- value_counts
+unique
+value_counts
 
-Sorting
-- sort_ascending
-- sort_descending
+sort_ascending
+sort_descending
 
-Filtering
-- filter_equals
+filter_equals
 
-Ranking
-- top_n
-- bottom_n
+top_n
+bottom_n
 
-Group By
-- groupby_mean
-- groupby_sum
-- groupby_count
+correlation
 
-Relationships
-- correlation
+groupby_mean
+groupby_sum
+groupby_count
 
 Rules
 
-1. Return ONLY JSON.
-
-2. Use this format:
+If user asks:
+"How many rows?"
+or
+"Number of rows?"
+Return
 
 {
-  "tool":"tool_name",
+  "tool":"get_rows",
   "arguments":{}
 }
 
-3. If a column is needed, include:
+If user asks:
+"What is the shape?"
+Return
+
+{
+  "tool":"get_shape",
+  "arguments":{}
+}
+
+If user asks:
+"What are the columns?"
+Return
+
+{
+  "tool":"get_columns",
+  "arguments":{}
+}
+
+If user asks:
+"Show first rows"
+Return
+
+{
+  "tool":"get_head",
+  "arguments":{}
+}
+
+If user asks:
+"Show last rows"
+Return
+
+{
+  "tool":"get_tail",
+  "arguments":{}
+}
+
+For mean
 
 {
   "tool":"mean",
@@ -88,7 +115,79 @@ Rules
   }
 }
 
-4. For top or bottom rows:
+For median
+
+{
+  "tool":"median",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For max
+
+{
+  "tool":"max",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For min
+
+{
+  "tool":"min",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For sum
+
+{
+  "tool":"sum",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For std
+
+{
+  "tool":"std",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For variance
+
+{
+  "tool":"variance",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For value counts
+
+{
+  "tool":"value_counts",
+  "arguments":{
+      "column":"class"
+  }
+}
+
+For unique
+
+{
+  "tool":"unique",
+  "arguments":{
+      "column":"state"
+  }
+}
+
+For top N
 
 {
   "tool":"top_n",
@@ -98,17 +197,35 @@ Rules
   }
 }
 
-5. For filtering:
+For bottom N
 
 {
-  "tool":"filter_equals",
+  "tool":"bottom_n",
   "arguments":{
-      "column":"class",
-      "value":"A"
+      "column":"salary",
+      "n":5
   }
 }
 
-6. For groupby mean:
+For ascending sort
+
+{
+  "tool":"sort_ascending",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For descending sort
+
+{
+  "tool":"sort_descending",
+  "arguments":{
+      "column":"salary"
+  }
+}
+
+For groupby mean
 
 {
   "tool":"groupby_mean",
@@ -118,11 +235,41 @@ Rules
   }
 }
 
-7. If no tool matches, return
+For groupby sum
 
 {
-   "tool":"unknown",
-   "arguments":{}
+  "tool":"groupby_sum",
+  "arguments":{
+      "group_column":"department",
+      "value_column":"salary"
+  }
+}
+
+IMPORTANT
+
+For groupby_count NEVER send value_column.
+
+Correct format
+
+{
+  "tool":"groupby_count",
+  "arguments":{
+      "group_column":"class"
+  }
+}
+
+For correlation
+
+{
+  "tool":"correlation",
+  "arguments":{}
+}
+
+If unsure return
+
+{
+  "tool":"unknown",
+  "arguments":{}
 }
 """
 
@@ -132,9 +279,7 @@ def choose_tool(question):
     response = client.chat.completions.create(
         model="gpt-4.1",
         temperature=0,
-        response_format={
-            "type": "json_object"
-        },
+        response_format={"type": "json_object"},
         messages=[
             {
                 "role": "system",
@@ -148,9 +293,7 @@ def choose_tool(question):
     )
 
     try:
-        return json.loads(
-            response.choices[0].message.content
-        )
+        return json.loads(response.choices[0].message.content)
     except Exception:
         return {
             "tool": "unknown",
