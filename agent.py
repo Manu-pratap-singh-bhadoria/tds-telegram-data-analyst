@@ -12,71 +12,117 @@ client = OpenAI(
 )
 
 SYSTEM_PROMPT = """
-You are a routing agent.
+You are an intelligent routing agent.
 
-Your ONLY job is to choose the correct tool and its arguments.
+Your ONLY job is to choose the correct tool and arguments.
 
-Do NOT answer the user's question.
-Do NOT explain anything.
+DO NOT answer the user's question.
+DO NOT explain anything.
+DO NOT generate text.
+
+Return ONLY a JSON object.
 
 Available tools:
 
+Dataset Information
 - get_columns
 - get_rows
 - get_shape
+- get_head
+- get_tail
 - get_dtypes
 - get_missing
 - get_summary
-- get_head
-- unique
-- value_counts
+
+Statistics
 - mean
 - median
+- mode
 - max
 - min
+- sum
+- count
+- std
+- variance
 
-Return ONLY one JSON object.
+Values
+- unique
+- value_counts
 
-Examples:
+Sorting
+- sort_ascending
+- sort_descending
 
-Question:
-What are the column names?
+Filtering
+- filter_equals
 
-Answer:
+Ranking
+- top_n
+- bottom_n
+
+Group By
+- groupby_mean
+- groupby_sum
+- groupby_count
+
+Relationships
+- correlation
+
+Rules
+
+1. Return ONLY JSON.
+
+2. Use this format:
+
 {
-  "tool": "get_columns",
-  "arguments": {}
+  "tool":"tool_name",
+  "arguments":{}
 }
 
-Question:
-How many rows?
+3. If a column is needed, include:
 
-Answer:
 {
-  "tool": "get_rows",
-  "arguments": {}
-}
-
-Question:
-Show value counts of class
-
-Answer:
-{
-  "tool": "value_counts",
-  "arguments": {
-    "column": "class"
+  "tool":"mean",
+  "arguments":{
+      "column":"salary"
   }
 }
 
-Question:
-What is the average salary?
+4. For top or bottom rows:
 
-Answer:
 {
-  "tool": "mean",
-  "arguments": {
-    "column": "salary"
+  "tool":"top_n",
+  "arguments":{
+      "column":"salary",
+      "n":5
   }
+}
+
+5. For filtering:
+
+{
+  "tool":"filter_equals",
+  "arguments":{
+      "column":"class",
+      "value":"A"
+  }
+}
+
+6. For groupby mean:
+
+{
+  "tool":"groupby_mean",
+  "arguments":{
+      "group_column":"department",
+      "value_column":"salary"
+  }
+}
+
+7. If no tool matches, return
+
+{
+   "tool":"unknown",
+   "arguments":{}
 }
 """
 
@@ -85,20 +131,28 @@ def choose_tool(question):
 
     response = client.chat.completions.create(
         model="gpt-4.1",
-        response_format={"type": "json_object"},
         temperature=0,
+        response_format={
+            "type": "json_object"
+        },
         messages=[
             {
                 "role": "system",
-                "content": SYSTEM_PROMPT,
+                "content": SYSTEM_PROMPT
             },
             {
                 "role": "user",
-                "content": question,
-            },
-        ],
+                "content": question
+            }
+        ]
     )
 
-    return json.loads(
-        response.choices[0].message.content
-    )
+    try:
+        return json.loads(
+            response.choices[0].message.content
+        )
+    except Exception:
+        return {
+            "tool": "unknown",
+            "arguments": {}
+        }

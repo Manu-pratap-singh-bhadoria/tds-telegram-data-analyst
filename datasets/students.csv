@@ -1,0 +1,11 @@
+student_id,name,class,age,marks,salary,department,state
+1,Aman,A,20,88,45000,IT,Delhi
+2,Priya,B,21,91,52000,HR,Maharashtra
+3,Rahul,A,22,75,48000,IT,Uttar Pradesh
+4,Neha,C,20,82,51000,Finance,Karnataka
+5,Rohit,B,23,95,65000,IT,Haryana
+6,Anjali,A,21,79,47000,HR,Delhi
+7,Vikas,C,22,68,39000,Finance,Rajasthan
+8,Pooja,B,20,87,56000,Marketing,Punjab
+9,Karan,A,24,90,72000,IT,Gujarat
+10,Sneha,C,23,84,54000,Marketing,Madhya Pradesh
