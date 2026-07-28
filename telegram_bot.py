@@ -28,7 +28,7 @@ user_datasets = {}
 def make_reply(answer):
     return {
         "answer": answer,
-        "log_url": "https://example.com/run.jsonl"
+        "log_url": "https://raw.githubusercontent.com/Manu-pratap-singh-bhadoria/tds-telegram-data-analyst/refs/heads/main/logs/run.jsonl"
     }
 
 
