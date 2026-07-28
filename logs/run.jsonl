@@ -1,0 +1,24 @@
+{"question":"How many rows?","tool":"get_rows","result":{"rows":10}}
+{"question":"What are the columns?","tool":"get_columns","result":{"columns":["student_id","name","class","age","marks","salary","department","state"]}}
+{"question":"What is the shape?","tool":"get_shape","result":{"shape":[10,8]}}
+{"question":"Show first 5 rows.","tool":"get_head","result":"Returned first 5 rows"}
+{"question":"Show last 5 rows.","tool":"get_tail","result":"Returned last 5 rows"}
+{"question":"What are the data types?","tool":"get_dtypes","result":"Returned data types"}
+{"question":"How many missing values?","tool":"get_missing","result":"Returned missing values"}
+{"question":"Give summary statistics.","tool":"get_summary","result":"Returned summary statistics"}
+{"question":"What is the mean salary?","tool":"mean","result":{"mean":52900.0}}
+{"question":"What is the median marks?","tool":"median","result":{"median":85.5}}
+{"question":"What is the maximum salary?","tool":"max","result":{"max":72000}}
+{"question":"What is the minimum marks?","tool":"min","result":{"min":68}}
+{"question":"What is the sum of salary?","tool":"sum","result":{"sum":529000.0}}
+{"question":"What is the standard deviation of salary?","tool":"std","result":{"std":9666.091936937768}}
+{"question":"What is the variance of salary?","tool":"variance","result":{"variance":93433333.33333333}}
+{"question":"Show value counts of class.","tool":"value_counts","result":{"counts":{"A":4,"B":3,"C":3}}}
+{"question":"Show unique states.","tool":"unique","result":{"unique":["Delhi","Maharashtra","Uttar Pradesh","Karnataka","Haryana","Rajasthan","Punjab","Gujarat","Madhya Pradesh"]}}
+{"question":"Show top 3 salaries.","tool":"top_n","result":"Returned top 3 rows"}
+{"question":"Show bottom 3 marks.","tool":"bottom_n","result":"Returned bottom 3 rows"}
+{"question":"Sort by salary.","tool":"sort_ascending","result":"Returned sorted rows"}
+{"question":"Sort by marks descending.","tool":"sort_descending","result":"Returned sorted rows"}
+{"question":"Group by department and calculate mean salary.","tool":"groupby_mean","result":{"Finance":45000.0,"HR":49500.0,"IT":57500.0,"Marketing":55000.0}}
+{"question":"Group by class and count students.","tool":"groupby_count","result":{"groupby_count":{"A":4,"B":3,"C":3}}}
+{"question":"Show correlation matrix.","tool":"correlation","result":"Returned correlation matrix"}
