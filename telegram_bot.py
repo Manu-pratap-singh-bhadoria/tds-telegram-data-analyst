@@ -1,6 +1,9 @@
 import os
 import json
+import re
+import io
 import pandas as pd
+import requests
 
 from dotenv import load_dotenv
 
@@ -14,6 +17,8 @@ from telegram.ext import (
 
 from agent import choose_tool
 from tool_registry import TOOLS
+from logger import write_log
+
 
 load_dotenv()
 
@@ -25,11 +30,45 @@ os.makedirs(DATASET_DIR, exist_ok=True)
 user_datasets = {}
 
 
+LOG_URL = (
+    "https://raw.githubusercontent.com/"
+    "Manu-pratap-singh-bhadoria/"
+    "tds-telegram-data-analyst/"
+    "refs/heads/main/logs/run.jsonl"
+)
+
+
 def make_reply(answer):
     return {
         "answer": answer,
-        "log_url": "https://raw.githubusercontent.com/Manu-pratap-singh-bhadoria/tds-telegram-data-analyst/refs/heads/main/logs/run.jsonl"
+        "log_url": LOG_URL
     }
+
+
+def load_csv_from_url(url):
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+
+    return pd.read_csv(io.BytesIO(response.content))
+
+
+def find_csv_url(text):
+    if "https://" in text:
+        url = text.rsplit("https://", 1)[1]
+        url = "https://" + url
+        url = url.split(")", 1)[0]
+        url = url.split(" ", 1)[0]
+        return url.strip("[]<>.,;'\"")
+
+    if "http://" in text:
+        url = text.rsplit("http://", 1)[1]
+        url = "http://" + url
+        url = url.split(")", 1)[0]
+        url = url.split(" ", 1)[0]
+        return url.strip("[]<>.,;'\"")
+
+    return None
+
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -66,15 +105,15 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update.effective_chat.id
         ] = df
 
+        result = {
+            "status": "dataset uploaded",
+            "rows": len(df),
+            "columns": list(df.columns)
+        }
+
         await update.message.reply_text(
             json.dumps(
-                make_reply(
-                    {
-                        "status": "dataset uploaded",
-                        "rows": len(df),
-                        "columns": list(df.columns)
-                    }
-                ),
+                make_reply(result),
                 default=str
             )
         )
@@ -95,25 +134,63 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = update.effective_chat.id
-
-    question = update.message.text
-
-    if chat_id not in user_datasets:
-
-        await update.message.reply_text(
-            json.dumps(
-                make_reply(
-                    {
-                        "error": "Upload a CSV file first."
-                    }
-                )
-            )
-        )
-        return
-
-    df = user_datasets[chat_id]
+    question = update.message.text or ""
 
     try:
+
+        # ---------------------------------------------------------
+        # 1. Check whether the message contains a public CSV URL
+        # ---------------------------------------------------------
+
+        csv_url = find_csv_url(question)
+
+        print("QUESTION:", repr(question))
+        print("EXTRACTED CSV URL:", repr(csv_url))
+
+        if csv_url:
+            df = load_csv_from_url(csv_url)
+
+            user_datasets[chat_id] = df
+
+        # ---------------------------------------------------------
+        # 2. Otherwise use the dataset already stored for this chat
+        # ---------------------------------------------------------
+
+        elif chat_id in user_datasets:
+
+            df = user_datasets[chat_id]
+
+        # ---------------------------------------------------------
+        # 3. No dataset available
+        # ---------------------------------------------------------
+
+        else:
+
+            result = {
+                "error": (
+                    "No dataset found. "
+                    "Please provide a public CSV URL in the message."
+                )
+            }
+
+            write_log(
+                question,
+                "dataset_error",
+                result
+            )
+
+            await update.message.reply_text(
+                json.dumps(
+                    make_reply(result),
+                    default=str
+                )
+            )
+
+            return
+
+        # ---------------------------------------------------------
+        # 4. Ask the LLM which analysis tool to use
+        # ---------------------------------------------------------
 
         decision = choose_tool(question)
 
@@ -124,18 +201,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             {}
         )
 
+        # ---------------------------------------------------------
+        # 5. Validate tool
+        # ---------------------------------------------------------
+
         if tool_name not in TOOLS:
+
+            result = {
+                "error": "Unknown tool"
+            }
+
+            write_log(
+                question,
+                tool_name,
+                result
+            )
 
             await update.message.reply_text(
                 json.dumps(
-                    make_reply(
-                        {
-                            "error": "Unknown tool"
-                        }
-                    )
+                    make_reply(result),
+                    default=str
                 )
             )
+
             return
+
+        # ---------------------------------------------------------
+        # 6. Execute analysis
+        # ---------------------------------------------------------
 
         function = TOOLS[tool_name]
 
@@ -143,6 +236,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             df,
             **arguments
         )
+
+        # ---------------------------------------------------------
+        # 7. Write log
+        # ---------------------------------------------------------
+
+        write_log(
+            question,
+            tool_name,
+            result
+        )
+
+        # ---------------------------------------------------------
+        # 8. Return exactly one JSON object
+        # ---------------------------------------------------------
 
         await update.message.reply_text(
             json.dumps(
@@ -153,25 +260,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except KeyError as e:
 
+        result = {
+            "error": f"Column not found: {str(e)}"
+        }
+
+        write_log(
+            question,
+            "error",
+            result
+        )
+
         await update.message.reply_text(
             json.dumps(
-                make_reply(
-                    {
-                        "error": f"Column not found: {str(e)}"
-                    }
-                )
+                make_reply(result),
+                default=str
             )
         )
 
     except Exception as e:
 
+        result = {
+            "error": str(e)
+        }
+
+        write_log(
+            question,
+            "error",
+            result
+        )
+
         await update.message.reply_text(
             json.dumps(
-                make_reply(
-                    {
-                        "error": str(e)
-                    }
-                )
+                make_reply(result),
+                default=str
             )
         )
 
@@ -182,6 +303,8 @@ app = (
     .build()
 )
 
+
+# CSV attachment handler
 app.add_handler(
     MessageHandler(
         filters.Document.ALL,
@@ -189,6 +312,8 @@ app.add_handler(
     )
 )
 
+
+# Normal text message handler
 app.add_handler(
     MessageHandler(
         filters.TEXT & ~filters.COMMAND,
@@ -196,6 +321,7 @@ app.add_handler(
     )
 )
 
-print("Bot Running...")
 
-app.run_polling()
+if __name__ == "__main__":
+    print("Bot Running...")
+    app.run_polling()
